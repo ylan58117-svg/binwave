@@ -1,4 +1,17 @@
-# SoundBin（开源快照）
+# BinWave
+
+**BinWave** 是 [SoundBin](../) 1.8.5 的开源快照 —— 一个 Electron 写的桌面音效素材管理与试听工具：
+把散落在硬盘里的音频索引成可搜索列表，波形试听、修剪、加效果，直接拖进 DAW。
+
+> 想找这个项目？搜 **binwave** 或 **BinWave**（GitHub 仓库名 `ylan58117-svg/binwave`）。
+
+## 直接下载使用（Windows x64）
+
+[**→ 下载 SoundBin 1.8.5 便携包（189 MB）**](https://github.com/ylan58117-svg/binwave/releases/tag/v1.8.5)
+
+解压后双击 `SoundBin.exe`，免安装。两点限制：
+- **不含 VST3 运行时**（`pyrt\`，80 MB），所以 VST 插件功能不可用，其余功能正常。
+- 只提供 Windows x64 包；macOS 需要自行用 Electron 运行源码。
 
 这是 **SoundBin 1.8.5** 的开源快照，从私有开发线 `SoundBin-Source` 的 `290edc4` 导出。
 
