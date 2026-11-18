@@ -1,0 +1,10 @@
+# 构建产物与运行时（不纳入版本库）
+dist/
+data/
+pyrt/
+node_modules/
+*.zip
+*.7z
+*.log
+.DS_Store
+Thumbs.db

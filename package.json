@@ -1,0 +1,14 @@
+{
+  "name": "soundbin-open",
+  "productName": "SoundBin",
+  "version": "1.8.5",
+  "description": "SoundBin (open-source snapshot of v1.8.5) — audition library audio in place, drag straight into your DAW.",
+  "main": "src/main.js",
+  "author": "",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "runtime\\electron.exe . --user-data-dir=data"
+  },
+  "devDependencies": {}
+}

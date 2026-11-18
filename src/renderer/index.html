@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' snd: blob:; connect-src 'self' snd: blob:;" />
+  <title>SoundBin</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+
+  <!-- 贴边模式展开时，内侧那条边可以拖着调宽度 -->
+  <div class="dock-grip" id="dockGrip" title="拖拽调整面板宽度"></div>
+
+  <!-- 贴边模式专用：顶上一条「音频 / 设置」切换（平时隐藏） -->
+  <!-- 整条都可以拖着走：往下拖就把窗口从屏幕边上拽下来，同时关掉贴边隐藏 -->
+  <div class="dock-tabs" id="dockTabs" title="按住这里拖动，可以把窗口从屏幕边上拽下来">
+    <button class="dock-tab active" id="dockTabAudio" title="回到素材列表">音频</button>
+    <button class="dock-tab" id="dockTabSettings" title="贴边隐藏、Agent、插件、缓存">设置</button>
+    <span class="dock-tabs-hint" id="dockTabsHint"></span>
+  </div>
+
+  <!-- ===================== Title bar ===================== -->
+  <header class="titlebar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M2 12h2.2M6.6 7.4v9.2M9.8 4.2v15.6M13 8.6v6.8M16.2 6v12M19.4 9.6v4.8M22 11.2v1.6"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      <span class="brand-name">SoundBin</span>
+    </div>
+
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+        <path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      <input id="search" type="text" spellcheck="false" autocomplete="off"
+             placeholder="搜索名称 / 类别 / 路径…   ( / 聚焦 )" />
+      <button id="searchClear" class="icon-btn tiny hidden" title="清除搜索">✕</button>
+    </div>
+
+    <div class="titlebar-actions">
+      <button id="btnImport" class="btn" title="导入文件或文件夹">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v10M12 15l-3.4-3.4M12 15l3.4-3.4M4 17.6v1.4A1 1 0 0 0 5 20h14a1 1 0 0 0 1-1v-1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        导入<span class="caret">▾</span>
+      </button>
+      <button id="btnInspector" class="btn ghost" title="检查器：信息 / 相似波形 / 处理 / AI 检索">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.2" y="4.5" width="17.6" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14.6 4.5v15" stroke="currentColor" stroke-width="1.6"/></svg>
+        检查器<span class="caret">▾</span>
+      </button>
+      <button id="btnAiTool" class="btn ghost" title="AI 工具：语义检索 / 音频生成（Ctrl+K）">AI 工具</button>
+      <button id="btnSettings" class="btn ghost icon-only" title="设置">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 3.2v2M12 18.8v2M3.2 12h2M18.8 12h2M5.8 5.8l1.4 1.4M16.8 16.8l1.4 1.4M18.2 5.8l-1.4 1.4M7.2 16.8l-1.4 1.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================== Main ===================== -->
+  <main class="workspace">
+    <aside class="sidebar">
+      <div class="side-section" data-dropzone="collection">
+        <div class="side-title" id="libTitle">
+          <span>资料库</span>
+          <button class="side-add" id="btnNewCollection" title="新建资料库（也可以在此右键）">＋</button>
+        </div>
+        <button class="side-item active" data-filter="all">
+          <span class="dot all"></span><span class="side-label">全部音频</span>
+          <span class="side-count" id="countAll">0</span>
+        </button>
+        <button class="side-item" data-filter="missing">
+          <span class="dot missing"></span><span class="side-label">文件缺失</span>
+          <span class="side-count" id="countMissing">0</span>
+        </button>
+        <button class="side-item" data-filter="ai">
+          <span class="dot ai"></span><span class="side-label">AI 音效库</span>
+          <span class="side-count" id="countAi">0</span>
+        </button>
+        <div id="collectionList" class="cat-list collection-list"></div>
+      </div>
+
+      <div class="side-section grow" data-dropzone="category">
+        <div class="side-title" id="catTitle">
+          <span>分类</span>
+          <button class="side-add" id="btnCleanCategories" title="清理：丢失的音频 / 空分类 / 清空所有分类">⋯</button>
+          <button class="side-add" id="btnNewCategory" title="新建分类（也可以在此右键）">＋</button>
+        </div>
+        <div id="categoryList" class="cat-list"></div>
+      </div>
+
+      <div class="side-section">
+        <div class="side-title">格式</div>
+        <div id="formatList" class="format-list"></div>
+      </div>
+
+      <div class="side-footer" id="libStats">—</div>
+
+      <div class="side-splitter" id="sideSplit" title="拖动调整侧栏宽度"></div>
+    </aside>
+
+    <section class="content">
+      <div class="list-header" id="listHeader">
+        <div class="col col-idx">#</div>
+        <div class="col col-art"></div>
+        <div class="col col-name">名称</div>
+        <div class="col col-desc">描述</div>
+        <div class="col col-dur sortable" data-sort="duration">时长</div>
+        <div class="col col-fmt sortable" data-sort="format">格式</div>
+        <div class="col col-sr sortable" data-sort="sampleRate">采样率</div>
+        <div class="col col-bd sortable" data-sort="bitDepth">位深</div>
+        <div class="col col-ch sortable" data-sort="channels">声道</div>
+        <div class="col col-size sortable" data-sort="size">大小</div>
+        <div class="col col-path">路径</div>
+      </div>
+
+      <div class="list-body" id="listBody">
+        <div class="list-spacer" id="listSpacer"></div>
+        <div class="list-rows" id="listRows"></div>
+      </div>
+
+      <div class="empty-state" id="emptyState">
+        <div class="empty-art">
+          <svg viewBox="0 0 120 80" aria-hidden="true">
+            <path d="M6 40h8M22 24v32M34 14v52M46 30v20M58 20v40M70 32v16M82 26v28M94 36v8M106 38v4"
+                  fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+          </svg>
+        </div>
+        <h2>把音频拖进来</h2>
+        <p>拖入文件或文件夹，或用上方按钮导入。<br />
+           <strong>文件不会被复制</strong> —— 这里只记住它的位置，播放和拖进 DAW 都直接指向原文件。</p>
+      </div>
+    </section>
+<aside class="side-info hidden" id="infoPanel">
+    <div class="settings-head">
+      <h3 id="infoTitle">音频信息</h3>
+      <button class="icon-btn" id="infoClose">✕</button>
+    </div>
+    <div class="settings-body" id="infoBody"></div>
+  </aside>
+  </main>
+
+  <!-- ===================== Waveform ===================== -->
+  <section class="wave-panel" id="wavePanel">
+    <div class="wave-resize" id="waveResize" title="拖动调整高度"></div>
+    <div class="wave-head">
+      <div class="fx-mini" id="fxMini">
+        <button class="fx-mini-toggle" id="fxMiniToggle" title="选择效果器">
+          <span class="fx-led" id="fxMiniLed"></span>效果
+          <svg class="fx-caret" viewBox="0 0 10 6" width="8" height="5" aria-hidden="true"><path d="M0 0l5 6 5-6z" fill="currentColor"></path></svg>
+        </button>
+        <div class="fx-mini-body" id="fxMiniBody">
+          <label class="fx-mini-field" title="低切（Hz）">
+            <span>低</span><input type="range" id="fxMiniHp" min="0" max="600" step="10" /><em id="fxMiniHpVal">20</em>
+          </label>
+          <label class="fx-mini-field" title="高切（Hz）">
+            <span>高</span><input type="range" id="fxMiniLp" min="800" max="20000" step="100" /><em id="fxMiniLpVal">18000</em>
+          </label>
+          <label class="fx-mini-field" title="混响湿声（%）">
+            <span>混</span><input type="range" id="fxMiniRev" min="0" max="100" step="1" /><em id="fxMiniRevVal">18</em>
+          </label>
+        </div>
+      </div>
+      <div class="wave-title">
+        <span class="wave-name" id="waveName">未选择音频</span>
+        <span class="wave-meta" id="waveMeta"></span>
+      </div>
+      <div class="wave-tools">
+        <button class="chip" id="chipZoom" title="波形缩放：T 放大 / R 缩小 · 滚轮在指针处缩放 · Shift+滚轮平移 · 双击还原">×1</button>
+        <button class="chip hidden" id="chipTrim" title="把选区导出成 WAV 并加入列表 (Ctrl+E)">导出选区</button>
+        <button class="chip on" id="chipWaveGain" title="波形显示增益：适应 / 实际">波形 适应</button>
+        <button class="chip" id="chipLoop" title="循环播放 (L)">循环</button>
+        <button class="chip" id="chipMono" title="单声道监听 (S)">单声道</button>
+        <span class="wave-timecode" id="waveTime">00:00.000</span>
+      </div>
+    </div>
+    <div class="wave-canvas-wrap" id="waveWrap">
+      <canvas id="waveCanvas"></canvas>
+      <div class="wave-hint" id="waveHint">点击波形可定位</div>
+    </div>
+  </section>
+
+  <!-- ===================== Transport ===================== -->
+  <footer class="transport">
+    <div class="transport-left">
+      <button class="tbtn" id="btnPrev" title="上一个 (↑)">
+        <svg viewBox="0 0 24 24"><path d="M18 6v12L9 12z" fill="currentColor"/><path d="M6 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button class="tbtn primary" id="btnPlay" title="播放 / 暂停 (空格)">
+        <svg id="iconPlay" viewBox="0 0 24 24"><path d="M7 4.5 20 12 7 19.5z" fill="currentColor"/></svg>
+        <svg id="iconPause" class="hidden" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1" fill="currentColor"/><rect x="14" y="4.5" width="4" height="15" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="tbtn" id="btnNext" title="下一个 (↓)">
+        <svg viewBox="0 0 24 24"><path d="M6 6v12l9-6z" fill="currentColor"/><path d="M18 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button class="tbtn" id="btnStop" title="停止 (Esc)">
+        <svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5" fill="currentColor"/></svg>
+      </button>
+
+      <div class="time-display">
+        <span id="tcCurrent">00:00.000</span>
+        <span class="tc-sep">/</span>
+        <span id="tcTotal">00:00.000</span>
+      </div>
+
+      <!-- 贴边面板里没有长条音量条的位置：这里放一个旋钮式增益，
+           按住上下拖 = 粗调，按住 Alt 上下拖 = 0.1 dB 精调，双击归零。 -->
+      <button class="gain-knob" id="gainKnob" title="增益：按住上下拖动（按住 Alt 精调，双击归零）">
+        <span class="knob-dial" id="gainKnobDial" aria-hidden="true"></span>
+        <span class="knob-value" id="gainKnobValue">0.0 dB</span>
+      </button>
+    </div>
+
+    <div class="transport-right">
+      <div class="vol-wrap">
+        <button class="tbtn small" id="btnMute" title="静音 (M)">
+          <svg id="iconVol" viewBox="0 0 24 24"><path d="M5 9.5h3L12.5 6v12L8 14.5H5z" fill="currentColor"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6M18 7a7.5 7.5 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <svg id="iconMuted" class="hidden" viewBox="0 0 24 24"><path d="M5 9.5h3L12.5 6v12L8 14.5H5z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+        <input id="volume" class="vol-slider" type="range" min="-60" max="12" step="0.1" value="0" />
+        <span class="vol-readout" id="volReadout">0.0 dB</span>
+      </div>
+    </div>
+
+    <div class="drop-overlay" id="dropOverlay">
+      <div class="drop-card">
+        <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div class="drop-title">松手即导入</div>
+        <div class="drop-sub">文件保留在原位置，不会复制</div>
+        <div class="drop-hint" id="dropHint">想让它们进某个资料库？把文件夹拖到左侧那个库上</div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===================== Settings drawer ===================== -->
+  <div class="settings-scrim hidden" id="settingsScrim"></div>
+  <aside class="settings hidden" id="settings">
+    <div class="settings-head">
+      <h3>设置</h3>
+      <button class="icon-btn" id="settingsClose">✕</button>
+    </div>
+    <div class="settings-tabs" id="settingsTabs">
+      <button type="button" class="settings-tab active" data-tab="general">常规</button>
+      <button type="button" class="settings-tab" data-tab="data">数据与位置</button>
+      <button type="button" class="settings-tab" data-tab="ai">AI 与插件</button>
+    </div>
+    <div class="settings-body">
+      <div class="setting" data-group="general">
+        <label>音效缓存</label>
+        <div class="setting-row">
+          <span id="cacheSize" class="mono">—</span>
+          <button class="btn small" id="btnClearCache">清空缓存</button>
+        </div>
+      </div>
+      <div class="setting" data-group="data">
+        <label>资料库位置</label>
+        <p class="setting-desc mono" id="userDataPath">—</p>
+        <div class="setting-row">
+          <button class="btn small" id="btnOpenUserData">打开目录</button>
+        </div>
+      </div>
+      <div class="setting" data-group="data" id="cleanupSection">
+        <label>清理维护</label>
+        <p class="setting-desc" id="cleanupStats">—</p>
+        <div class="setting-row wrap">
+          <button class="btn small" id="btnCleanupNow">一键清理</button>
+          <button class="btn small" id="btnPurgeMissing">清除丢失音频</button>
+          <button class="btn small" id="btnPurgeEmptyCats">清除空分类</button>
+          <button class="btn small" id="btnClearCategories" title="分类全删，分类里的音频一并从清单移除（磁盘文件不动）">清空所有分类（含音频）</button>
+        </div>
+      </div>
+      <div class="setting" data-group="data" id="relinkSection">
+        <label>找回丢失素材</label>
+        <p class="setting-desc" id="relinkStats">—</p>
+        <div class="setting-row wrap">
+          <button class="btn small" id="btnRelinkCheck">重新检查（插上盘就点这个）</button>
+          <button class="btn small" id="btnRelinkFolder" title="盘符或目录变了：选新的根目录，按同名文件重新对上">按新位置找回…</button>
+        </div>
+        <p class="setting-desc">插上移动硬盘后会自动重新检查（每 30 秒一次），也可以手动点左边那个。</p>
+      </div>
+      <div class="setting" data-group="data" id="storageSection">
+        <label>数据位置（换盘就搬走）</label>
+        <p class="setting-desc mono" id="storagePath">—</p>
+        <div class="setting-row wrap">
+          <button class="btn small" id="btnStorageOpen">打开目录</button>
+          <button class="btn small" id="btnStorageMove" title="把清单和缓存整个搬到别的盘（比如 C 盘满了搬到 D 盘），搬完自动重启">迁移到…</button>
+          <button class="btn small" id="btnStorageReset" title="撤销迁移，回到程序旁边的 data\（原来的文件不会自动删）">恢复默认位置</button>
+        </div>
+        <p class="setting-desc" id="storageHint">清单和缓存都在这里；换盘时用「迁移到…」，不用自己拷文件夹。</p>
+      </div>
+      <div class="setting" data-group="data" id="backupSection">
+        <label>清单备份</label>
+        <p class="setting-desc" id="backupList">—</p>
+        <div class="setting-row wrap">
+          <button class="btn small" id="btnBackupNow">立即备份</button>
+          <button class="btn small" id="btnBackupOpen">打开备份目录</button>
+        </div>
+        <p class="setting-desc">每天第一次启动自动留一份清单，保留最近 7 天；点列表里的日期可以恢复（会先把你现在的清单再存一份）。</p>
+      </div>
+      <div class="setting" data-group="general" id="auditionSection">
+        <label>试听</label>
+        <div class="setting-row">
+          <label class="switch"><input id="chkHoverAudition" type="checkbox" /><span class="track"><span class="knob"></span></span></label>
+          <span class="muted" id="hoverAuditionHint">悬停即试听</span>
+        </div>
+        <div class="setting-row wrap">
+          <span class="mini-label">停留</span>
+          <input type="range" id="hoverDelay" class="inline-range" min="1" max="30" step="1" value="3" />
+          <span class="mono" id="hoverDelayVal">0.3 s</span>
+        </div>
+        <p class="setting-desc small" id="hoverAuditionDesc">鼠标在列表某一行停 0.3 秒开始播（播 8 秒自动停）；移到同一目录下别的行会直接换过去，不用点。正在手动播放的那条不会被抢。</p>
+      </div>
+      <div class="setting" data-group="general" id="dockSection">
+        <label>贴边隐藏</label>
+        <div class="setting-row">
+          <label class="switch"><input id="dockEnabled" type="checkbox" /><span class="track"><span class="knob"></span></span></label>
+          <span class="muted" id="dockHint">关闭</span>
+        </div>
+        <div class="setting-row wrap">
+          <span class="mini-label">贴哪边</span>
+          <div class="seg" id="dockEdge">
+            <button type="button" class="seg-btn" data-edge="left">左</button>
+            <button type="button" class="seg-btn active" data-edge="right">右</button>
+          </div>
+          <span class="mini-label">宽度</span>
+          <input type="range" id="dockWidth" class="inline-range" min="320" max="900" step="10" value="480" />
+          <span class="mono" id="dockWidthVal">480 px</span>
+        </div>
+        <p class="setting-desc small" id="dockScreenHint"></p>
+      </div>
+
+      <div class="setting" data-group="ai">
+        <label>Agent 语义检索</label>
+        <div class="field">
+          <label for="agentProfile">当前用哪套配置</label>
+          <select id="agentProfile"></select>
+          <p class="setting-desc small" id="agentProfileHint">每套配置各自记住接口地址、模型和密钥；换厂家（DeepSeek / OpenAI / 本地 Ollama）时切一下就行。</p>
+        </div>
+        <div class="field">
+          <label for="agentBaseUrl">接口地址</label>
+          <input id="agentBaseUrl" type="text" spellcheck="false" autocomplete="off"
+                 placeholder="https://api.deepseek.com/v1" />
+        </div>
+        <div class="field">
+          <label for="agentModel">模型</label>
+          <input id="agentModel" type="text" spellcheck="false" autocomplete="off" placeholder="deepseek-chat / deepseek-flash" />
+        </div>
+        <div class="field">
+          <label for="agentKey">API Key</label>
+          <input id="agentKey" type="password" spellcheck="false" autocomplete="off" placeholder="留空 = 不修改" />
+        </div>
+        <div class="field">
+          <label for="agentProfileName">把这套存成新配置</label>
+          <input id="agentProfileName" type="text" spellcheck="false" autocomplete="off" placeholder="起个名字，例如「DeepSeek 主号」" />
+        </div>
+        <div class="setting-row wrap">
+          <button class="btn small" id="btnAgentSave">保存</button>
+          <button class="btn small ghost" id="btnAgentProfileSave">另存为新配置</button>
+          <button class="btn small ghost" id="btnAgentProfileDelete">删除这套</button>
+          <button class="btn small ghost" id="btnAgentTest">测试连接</button>
+          <button class="btn small ghost" id="btnAgentClearKey">删除密钥</button>
+          <span class="mono muted" id="agentStatus">未配置</span>
+        </div>
+      </div>
+
+      <div class="setting" data-group="ai">
+        <label>音频生成（AI）密钥</label>
+        <div class="field">
+          <label for="genProfile">当前用哪套配置</label>
+          <select id="genProfile"></select>
+          <p class="setting-desc small" id="genProfileHint">用云端模型生成「持续型底噪」（风/雨/火/水/机械/人群）。密钥只存在本机、只由主进程使用。</p>
+        </div>
+        <div class="field">
+          <label for="genProvider">服务商</label>
+          <select id="genProvider">
+            <option value="stability">Stability（Stable Audio）</option>
+            <option value="elevenlabs">ElevenLabs（SFX）</option>
+            <option value="custom">自定义（POST JSON）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="genName">配置名字</label>
+          <input id="genName" type="text" spellcheck="false" autocomplete="off" placeholder="例如「Stability 主号」" />
+        </div>
+        <div class="field">
+          <label for="genEndpoint">接口地址</label>
+          <input id="genEndpoint" type="text" spellcheck="false" autocomplete="off" placeholder="https://api.stability.ai" />
+        </div>
+        <div class="field">
+          <label for="genModel">模型 / 路径</label>
+          <input id="genModel" type="text" spellcheck="false" autocomplete="off" placeholder="stable-audio-2" />
+        </div>
+        <div class="field">
+          <label for="genKey">API Key</label>
+          <input id="genKey" type="password" spellcheck="false" autocomplete="off" placeholder="留空 = 不修改" />
+        </div>
+        <div class="setting-row wrap">
+          <button class="btn small" id="btnGenSave">保存</button>
+          <button class="btn small ghost" id="btnGenProfileNew">另存为新配置</button>
+          <button class="btn small ghost" id="btnGenProfileDelete">删除这套</button>
+          <button class="btn small ghost" id="btnGenBalance">查余额</button>
+          <button class="btn small ghost" id="btnGenClearKey">删除密钥</button>
+          <span class="mono muted" id="genStatus">未配置</span>
+        </div>
+      </div>
+
+      <div class="setting" data-group="ai">
+        <label>本机音频插件</label>
+        <div class="setting-row">
+          <button class="btn small" id="btnScanPlugins">扫描</button>
+          <span class="mono muted" id="pluginStatus">未扫描</span>
+        </div>
+        <div class="plugin-list" id="pluginList"></div>
+      </div>
+
+      <div class="setting" data-group="general">
+        <ul class="hints">
+          <li>
+            <span class="hk"><kbd>空格</kbd>播放</span>
+            <span class="hk"><kbd>Esc</kbd>停止</span>
+            <span class="hk"><kbd>↑</kbd><kbd>↓</kbd>上下条</span>
+          </li>
+          <li>
+            <span class="hk"><kbd>L</kbd>循环</span>
+            <span class="hk"><kbd>M</kbd>静音</span>
+            <span class="hk"><kbd>S</kbd>单声道</span>
+          </li>
+          <li>
+            <span class="hk"><kbd>Ctrl</kbd>+<kbd>K</kbd>Agent 检索</span>
+            <span class="hk"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>效果器</span>
+          </li>
+          <li>
+            <span class="hk"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>旁通</span>
+            <span class="hk"><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd>贴边面板</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </aside>
+
+
+  <!-- ===================== Similar waveform drawer ===================== -->
+  <div class="settings-scrim hidden" id="similarScrim"></div>
+  <aside class="settings hidden" id="similarPanel">
+    <div class="settings-head">
+      <h3 id="similarTitle">相似波形</h3>
+      <button class="icon-btn" id="similarClose">✕</button>
+    </div>
+    <div class="settings-body" id="similarBody"></div>
+  </aside>
+
+  <!-- ===================== AI 工具（检索 / 生成） ===================== -->
+  <div class="settings-scrim hidden" id="aiScrim"></div>
+  <aside class="settings hidden" id="aiPanel">
+    <div class="settings-head">
+      <h3>AI 工具</h3>
+      <button class="icon-btn" id="aiClose">✕</button>
+    </div>
+    <div class="settings-tabs" id="aiTabs">
+      <button class="settings-tab active" type="button" data-ai-tab="search">检索</button>
+      <button class="settings-tab" type="button" data-ai-tab="gen">生成</button>
+    </div>
+
+    <!-- ---------- 板块一：语义检索 ---------- -->
+    <div class="settings-body" id="aiSearchSection">
+      <div class="ai-modelbar">
+        <span class="ai-model-label">模型</span>
+        <select class="ai-model-select" id="aiModelSelect" title="当前使用的 AI 配置；在「设置 → AI 与插件」里可以管理多套"></select>
+        <button class="btn small ghost" id="aiModelManage" title="打开设置，管理多套接口 / 模型 / 密钥">管理…</button>
+      </div>
+      <div class="ai-card">
+      <div class="ai-status" id="aiStatus">本地规则检索</div>
+      <textarea id="aiQuery" class="ai-query" rows="3" spellcheck="false"
+                placeholder="一句话描述你要的声音，回车检索（Shift+回车换行）"></textarea>
+      <div class="ai-presets" id="aiPresets"></div>
+      <div class="ai-image-row">
+        <button class="btn small ghost" id="aiImageBtn" title="导入一张参考图，让 Agent 判断画面里会出现什么声音">＋ 导入图片</button>
+        <button class="btn small ghost hidden" id="aiImageRetry" title="用当前这张图重新让模型看一遍（改了文字想让模型重新理解画面时用）">重新看图</button>
+        <!-- 历史 / 已保存：放在检索框右下角，不跟检索按钮挤一排 -->
+        <div class="ai-corner">
+          <button class="btn small ghost" id="aiHistory" title="每次检索自动记在这里，点一条就回到那次的搜索结果">历史</button>
+          <button class="btn small ghost" id="aiSaved" title="你手动保存下来的检索（和「历史」是两回事）">已保存</button>
+        </div>
+        <input type="file" id="aiImageInput" accept="image/*" class="hidden" />
+        <div class="ai-image hidden" id="aiImageBox">
+          <img id="aiImageThumb" alt="参考图" />
+          <div class="ai-image-meta">
+            <span class="muted" id="aiImageName"></span>
+            <button class="icon-btn tiny" id="aiImageClear" title="移除图片">✕</button>
+          </div>
+        </div>
+      </div>
+      <p class="ai-image-info hidden" id="aiImageInfo"></p>
+      <div class="ai-tags hidden" id="aiSounds"></div>
+      <div class="ai-tags" id="aiTags"></div>
+      <p class="ai-prune hidden" id="aiPrune"></p>
+      <div class="setting-row wrap">
+        <button class="btn small primary" id="aiRun">检索</button>
+        <button class="btn small ghost" id="btnAiGen" title="切到「生成」板块，用云端模型做一条新的">生成…</button>
+        <button class="btn small ghost hidden" id="aiGenMissing" title="这一轮检索里库里没有的（文件缺失 / 查不到），可以交给音效模型生成出来">补齐缺失的</button>
+        <button class="btn small ghost" id="aiOnly">只看结果</button>
+        <button class="btn small ghost" id="aiAll">显示全部</button>
+        <button class="btn small ghost" id="aiSaveHist" title="把这次检索存进「已保存」，历史里本来就会自动记一份">保存</button>
+        <label class="ai-deep" id="aiDeepWrap" title="连上 Agent 后，把整库的名字分段发给模型扫一遍，再回本地排序。慢一些，也更贵。">
+          <input type="checkbox" id="aiDeep"> 全库扫描
+        </label>
+        <label class="ai-deep" id="aiOfflineWrap" title="勾上后完全不访问网络：不拆词、不看图、不让模型排序，只用本地词表命中">
+          <input type="checkbox" id="aiOffline"> 离线（不发送给 AI）
+        </label>
+        <label class="ai-deep" id="aiKeepLocalWrap" title="连上 Agent 时，候选默认由模型给的「范围 + 关键词」去全库召回；勾上这个才会额外把本地词表命中的结果附在后面。">
+          <input type="checkbox" id="aiKeepLocal"> 保留本地命中
+        </label>
+        <span class="mono muted" id="aiCount"></span>
+      </div>
+      </div>
+      <div class="ai-results" id="aiResults"></div>
+    </div>
+
+    <!-- ---------- 板块二：音频生成 ---------- -->
+    <div class="settings-body hidden" id="aiGenSection">
+      <div class="ai-modelbar">
+        <span class="ai-model-label">模型</span>
+        <select class="ai-model-select" id="genModelSelect" title="当前使用的音频生成配置；接口和密钥在「设置 → AI 与插件」里改"></select>
+        <button class="btn small ghost" id="genModelManage" title="打开设置，填写接口 / 模型 / 密钥">管理…</button>
+      </div>
+      <p class="ai-status mono" id="genBalance">余额 —</p>
+      <p class="synth-hint">用云端模型生成声音：环境底噪、点状动效、脚步拟音都行。生成结果直接进库：可以修剪、加效果器、拖进 DAW。</p>
+      <div class="ai-card">
+        <textarea id="genPrompt" class="ai-query" rows="3" spellcheck="false" placeholder="英文效果最好，例如：quiet night park ambience, distant crickets, light breeze in trees, no music"></textarea>
+        <div class="gen-grid">
+          <label class="synth-field"><span>类型</span>
+            <select id="genKind" title="决定提示词里补哪些英文修饰词，以及默认时长">
+              <option value="ambience" selected>环境底噪</option>
+              <option value="event">点状动效（一下）</option>
+              <option value="foley">脚步 / 拟音</option>
+              <option value="ui">界面 / 提示音</option>
+              <option value="custom">自定义（只按我的描述）</option>
+            </select>
+          </label>
+          <label class="synth-field"><span>时长（秒）</span>
+            <input class="synth-num" type="number" id="genSeconds" min="1" max="190" step="1" value="30">
+          </label>
+          <label class="synth-field"><span>条数</span>
+            <select id="genCount"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+          </label>
+        </div>
+        <div class="gen-extra">
+          <label class="switch"><input id="genTranslate" type="checkbox" checked /><span class="track"><span class="knob"></span></span></label>
+          <span>中文描述自动翻成英文再生成（用检索模型翻译）</span>
+        </div>
+        <p class="ai-status mono hidden" id="genTranslated"></p>
+        <p class="gen-kind-note hidden" id="genKindNote"></p>
+        <div class="ai-actions">
+          <button class="btn small primary" id="btnGenRun">生成</button>
+          <button class="btn small ghost" id="btnGenBalance2">查余额</button>
+        </div>
+      </div>
+      <p class="ai-status" id="genRunStatus">写一句需求，点「生成」</p>
+      <div class="gen-results hidden" id="genResults"></div>
+    </div>
+
+  </aside>
+
+  <!-- ===================== Effects drawer ===================== -->
+  <div class="settings-scrim hidden" id="fxScrim"></div>
+  <aside class="settings hidden" id="fxPanel">
+    <div class="settings-head">
+      <h3>效果器</h3>
+      <button class="icon-btn" id="fxClose">✕</button>
+    </div>
+    <div class="settings-body">
+      <div class="setting">
+        <div class="setting-row spread">
+          <label>启用效果器</label>
+          <label class="switch"><input id="fxEnabled" type="checkbox" /><span class="track"><span class="knob"></span></span></label>
+        </div>
+      </div>
+
+      <div class="fx-row">
+        <label for="fxHp">低切 <span class="mono" id="fxHpVal">20 Hz</span></label>
+        <input type="range" id="fxHp" min="20" max="800" step="1" value="20" />
+      </div>
+      <div class="fx-row">
+        <label for="fxLp">高切 <span class="mono" id="fxLpVal">18 kHz</span></label>
+        <input type="range" id="fxLp" min="500" max="20000" step="50" value="18000" />
+      </div>
+      <div class="fx-row">
+        <label for="fxBellFreq">中频中心 <span class="mono" id="fxBellFreqVal">900 Hz</span></label>
+        <input type="range" id="fxBellFreq" min="120" max="9000" step="10" value="900" />
+      </div>
+      <div class="fx-row">
+        <label for="fxBellGain">中频增减 <span class="mono" id="fxBellGainVal">0.0 dB</span></label>
+        <input type="range" id="fxBellGain" min="-18" max="18" step="0.5" value="0" />
+      </div>
+
+      <div class="setting fx-group">
+        <div class="setting-row spread">
+          <label>压缩</label>
+          <label class="switch"><input id="fxCompOn" type="checkbox" /><span class="track"><span class="knob"></span></span></label>
+        </div>
+        <div class="fx-row">
+          <label for="fxCompThresh">阈值 <span class="mono" id="fxCompThreshVal">-24 dB</span></label>
+          <input type="range" id="fxCompThresh" min="-60" max="0" step="1" value="-24" />
+        </div>
+        <div class="fx-row">
+          <label for="fxCompRatio">比例 <span class="mono" id="fxCompRatioVal">4:1</span></label>
+          <input type="range" id="fxCompRatio" min="1" max="20" step="0.5" value="4" />
+        </div>
+      </div>
+
+      <div class="setting fx-group">
+        <div class="setting-row spread">
+          <label>混响</label>
+          <label class="switch"><input id="fxRevOn" type="checkbox" /><span class="track"><span class="knob"></span></span></label>
+        </div>
+        <div class="fx-row">
+          <label for="fxRevMix">湿声 <span class="mono" id="fxRevMixVal">18%</span></label>
+          <input type="range" id="fxRevMix" min="0" max="100" step="1" value="18" />
+        </div>
+        <div class="fx-row">
+          <label for="fxRevTime">时长 <span class="mono" id="fxRevTimeVal">1.6 s</span></label>
+          <input type="range" id="fxRevTime" min="0.2" max="8" step="0.1" value="1.6" />
+        </div>
+      </div>
+
+      <div class="setting-row wrap">
+        <button class="btn small ghost" id="fxReset">重置参数</button>
+        <button class="btn small primary" id="fxExport">导出处理后的 WAV</button>
+      </div>
+      <p class="setting-desc small" id="fxNote">导出 24-bit WAV，原文件不动；开着效果器时拖进 DAW 的也是处理后的版本。</p>
+    </div>
+  </aside>
+
+  <div class="edge-strip hidden" id="edgeStrip" title="点一下展开面板"></div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
