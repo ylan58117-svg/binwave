@@ -1,7 +1,10 @@
 # BinWave
 
-**BinWave** 是 [SoundBin](../) 1.8.5 的开源快照 —— 一个 Electron 写的桌面音效素材管理与试听工具：
+**BinWave** 是 SoundBin 1.8.5 的历史开源快照 —— 一个 Electron 写的桌面音效素材管理与试听工具：
 把散落在硬盘里的音频索引成可搜索列表，波形试听、修剪、加效果，直接拖进 DAW。
+
+> **后续版本已全部开源，主仓库迁到 [SoundBin-Open](https://github.com/ylan58117-svg/SoundBin-Open)。**
+> 1.9.x 起的新功能（SoundBox 本地生成、XY Control、AI 双板块、质感饱和等）不再闭源。
 
 > 想找这个项目？搜 **binwave** 或 **BinWave**（GitHub 仓库名 `ylan58117-svg/binwave`）。
 
@@ -13,9 +16,10 @@
 - **不含 VST3 运行时**（`pyrt\`，80 MB），所以 VST 插件功能不可用，其余功能正常。
 - 只提供 Windows x64 包；macOS 需要自行用 Electron 运行源码。
 
-这是 **SoundBin 1.8.5** 的开源快照，从私有开发线 `SoundBin-Source` 的 `290edc4` 导出。
+这是 **SoundBin 1.8.5** 的历史开源快照，从当时私有开发线的 `290edc4` 导出。它只用于保留 1.8.5 的行为和下载包，**不再代表当前版本**。
 
-- 冻结版本：**1.8.5**。开源版不再跟进后续私有版本（1.9 起的派生血缘、质量体检、生成台账等功能只存在于私有线）。
+- 当前主线：**[SoundBin-Open](https://github.com/ylan58117-svg/SoundBin-Open)**，最新 1.9.8，源码与后续版本全部开源。
+- 本仓库冻结在 **1.8.5**；1.9 起的派生血缘、质量体检、生成台账、SoundBox 桥接、XY Control 等功能请看新仓库。
 - 用途：学习 Electron 桌面音频工具的实现方式（自定义 `snd://` 协议、Web Audio 波形与效果链、AI 检索三段式、云端音频生成接入）。
 - 未包含：作者自己的素材库、密钥、打包产物（`dist/`）、`data/`、`pyrt/`（VST 用的 Python 运行时需自行准备，见下文）。
 - 许可：MIT（见仓库内 LICENSE 或 `package.json` 的 license 字段）。
@@ -42,7 +46,7 @@ VST3 渲染依赖 `pyrt\`（内置 Python + pedalboard + numpy）与 `src\vst\vs
 
 ## 说明
 
-本仓库不包含任何商业素材、密钥或用户数据；示例素材请自行准备。Issues / PR 欢迎，但作者主要维护私有线，合并会以「不破坏 1.8.5 行为」为前提。
+本仓库不包含任何商业素材、密钥或用户数据；示例素材请自行准备。这是 1.8.5 的冻结快照，新功能和当前版本请到 [SoundBin-Open](https://github.com/ylan58117-svg/SoundBin-Open)。Issues / PR 欢迎，但本仓库只做 1.8.5 的维护性修复。
 
 
 给声音设计用的**素材试听清单**。把散落在硬盘各处的音效拖进来，排成一张表，点一下就能听、能拖、能搜——但文件**一个字节都不会被复制**，它始终待在原来的位置。
